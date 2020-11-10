@@ -1,6 +1,6 @@
 # Description
 
-This is a script that sends a GET requests to specified URL and returns performance summary.
+This is a script that sends GET requests to specified URL and displays performance summary.
 
 ## Dependencies
 

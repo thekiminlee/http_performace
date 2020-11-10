@@ -161,6 +161,7 @@ func httpGet() (string, int, bool) {
 		lineByte, err := respReader.ReadBytes('\n')
 		line := string(lineByte)
 		if err == io.EOF {
+			resp += fmt.Sprint(line)
 			break
 		} else if err != nil {
 			log.Fatal(err)
