@@ -26,4 +26,6 @@ parameters:
 ### Build
 ```
     go build main.go
+    ./main --url="<url>" 
+    ./main --url="<url>" --profile=<num>
 ```
