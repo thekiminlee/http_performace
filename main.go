@@ -2,12 +2,18 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	// "net/http"
 	"os"
 	"sort"
 	"math"
 	"time"
+
+	"net/url"
+	"net"
+	"bufio"
+	"io"
+	"log"
+	"strings"
 
 	flag "github.com/ogier/pflag"
 )
@@ -71,7 +77,7 @@ func execGet() string {
 		elapsed := float64(end.Sub(start))
 		total += elapsed
 		performanceArr = append(performanceArr, elapsed)
-		
+
 		if smallest > float64(size) {
 			smallest = float64(size)
 		} 
@@ -124,20 +130,75 @@ func getMedian(arr []float64, length int) float64{
 	return median
 } 
 
-func httpGet() (string, int64, bool) {
-	resp, err := http.Get(workerURL)
-	size := resp.ContentLength
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+func httpGet() (string, int, bool) {
+	var resp string
+	var errorCode string
+	var fail bool = false
+	var size int = 0
 
+	u, err := url.Parse(workerURL)
 	if err != nil {
-		statusCode := fmt.Sprint(resp.StatusCode)
-		return statusCode, size, true
+		log.Fatal(err)
 	}
 
-	if size == -1 {
-		size = int64(len(body))
+	conn, err := net.Dial("tcp", u.Host+":80")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	return string(body), size, false
+	req := fmt.Sprintf("GET %v HTTP/1.1\r\n", u.Path)
+	req += fmt.Sprintf("Host: %v\r\n", u.Host)
+	req += fmt.Sprintf("Connection: close\r\n")
+	req += fmt.Sprintf("\r\n")
+
+	_, err = conn.Write([]byte(req))
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	respReader := bufio.NewReader(conn)
+	for {
+		lineByte, err := respReader.ReadBytes('\n')
+		line := string(lineByte)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+		
+		header := strings.Split(line, " ")
+		if header[0] == "HTTP/1.1" {
+			if header[1] != "200" {
+				errorCode = header[1]
+				fail = true
+			}
+		}
+		resp += fmt.Sprint(line)
+		size += len(lineByte)
+	}
+	conn.Close()
+	
+	if fail {
+		return errorCode, size, fail
+	}
+	return resp, size, fail
+
 }
+
+// func HttpGet() (string, int64, bool) {
+// 	resp, err := http.Get(workerURL)
+// 	size := resp.ContentLength
+// 	defer resp.Body.Close()
+// 	body, err := ioutil.ReadAll(resp.Body)
+
+// 	if err != nil {
+// 		statusCode := fmt.Sprint(resp.StatusCode)
+// 		return statusCode, size, true
+// 	}
+
+// 	if size == -1 {
+// 		size = int64(len(body))
+// 	}
+
+// 	return string(body), size, false
+// }
